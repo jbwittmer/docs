@@ -6,14 +6,20 @@ There are a number of ways to have an "offline" OpenAPS rig, and numerous ways t
 
 Medtronic CGM users can, by default, automatically loop offline because the rig will read CGM data directly from the pump.
 
-Dexcom CGM users and users of other CGMs will have alternatives to input blood glucose values localy.  1.) Use xDrip see: http://stephenblackwasalreadytaken.github.io/xDrip/ 2.)Hardwire (plugging CGM receiver into) your rig. 
+Dexcom CGM users have a few different alternatives to retrieve blood glucose values locally for offline use.  
+1. Use xDrip or xDrip+.  NOTE: All active development is being done on xDrip+. 
+   * xDrip: [http://stephenblackwasalreadytaken.github.io/xDrip/](http://stephenblackwasalreadytaken.github.io/xDrip/)
+   * xDrip+: [https://jamorham.github.io/#xdrip-plus](https://jamorham.github.io/#xdrip-plus) 
+2. Plug the CGM receiver directly into your rig via USB. 
+   * Explorer Boards that shipped at or after the end of February 2017/first week of March 2017 should enable users to simply plug in the CGM receiver to the OTG port, and a USB battery into the UART port, in order to run offline and pull BGs from the receiver. 
+   * Explorer boards built prior to late January of 2017 are not always working well/automatically with a CGM receiver plugged in. This can be fixed with a single trace cut, but doing so will break the ability to re-flash your Edison. Please make sure you have a second Explorer board or another base block or breakout board that you can use to re-flash the Edison if needed before considering this modification. For more details, see [this issue](https://github.com/EnhancedRadioDevices/915MHzEdisonExplorer/issues/14), and if you decide to make the cut, see [this document for details on how to cut the copper trace from pin 61 of the 70 pin connector](https://github.com/EnhancedRadioDevices/915MHzEdisonExplorer/wiki#usb-otg-flakiness). Cut in two places and dig out the copper between. Cut by poking a razor point in. Avoid the narrow trace above the one being cut.
 
-Explorer boards built prior to late January of 2017 are not allways working well with a hardwired CGM receiver. This can be fixed with a signal trace cut, but doing so will break the ability to re-flash your Edison. Please make sure you have a second Explorer board or another base block or breakout board that you can use to re-flash the Edison if needed before considering this modification. For more details, see [this issue](https://github.com/EnhancedRadioDevices/915MHzEdisonExplorer/issues/14), and if you decide to make the cut, see this document for details on how to cut the copper trace from pin 61 of the 70 pin connector: https://github.com/EnhancedRadioDevices/915MHzEdisonExplorer/wiki#usb-otg-flakiness Cut in two places and dig out the copper between. Cut by poking a razor point in. Avoid the narrow trace above the one being cut.
 
 ## Offline monitoring
 
 * See Pancreabble instructions below for connecting your rig to your watch
-* See xDrip instructions for seeing offline loop status (coming soon)
+* See xDrip/xDrip+ instructions below for seeing offline loop status
+* See HotButton instructions below for setting temp targets and controlling your rig offline via an Android
 
 ### Note about recovery from Camping Mode/Offline mode for Medtronic CGM users:
 
@@ -68,10 +74,11 @@ If you get errors, you may need to run `apt-get update` ahead of attempting to i
 
 Once jq is installed, the shell script runs and produces the `urchin-status.json` file which is needed to update the status on the pebble. It can be incorporated into an alias that regularly updates the pebble. You can modify it to produce messages that you want to see there.
 
-When installing the oref0-setup you will need to replace all instances of AA:BB:CC:DD:EE:FF with the Pebble MAC address. This can be found in Settings/System/Information/BT Address.
+When installing the oref0-setup you will need to replace all instances of AA:BB:CC:DD:EE:FF with the Pebble MAC address. This can be found in Settings/System/Information/BT Address.  NOTE: Make sure the MAC address is in ALL CAPS.
 
 Once you've installed, you will need to pair the watch to your Edison.
-### Bluetooth setup
+
+#### Bluetooth setup for Pancreabble
 
 * Restart the Bluetooth daemon to start up the bluetooth services.  (This is normally done automatically by oref0-online once everything is set up, but we want to do things manually this first time):
 
@@ -105,8 +112,8 @@ agent on
 default-agent
 ```
 
-On Pebble
-********************************
+#### On Your Pebble
+
 Settings/BLUETOOTH to make sure Pebble is in pairing mode
 
 from terminal 
@@ -141,15 +148,17 @@ the `peb-urchin-status.sh` gets called from the crontab and will run automatical
 By default the urchin_loop_on, and urchin_iob is set to true. You must manually change notify_temp_basal to true to start getting temp basal notifications. 
 you can edit this file using `nano pancreoptions.json` from your APS directory.
 
-### xDripAPS for offline BGs
+********************************
 
-This is a REST microservice designed to allow xDrip CGM data to be used in OpenAPS. **Note as of 1/26/17:** The below documentation is WIP and needs additional testing.
+### xDripAPS for offline BGs for Android users
 
-Do you use OpenAPS and xDrip? Until now, this usually means you need an internet connection to upload your CGM data to Nightscout and then have OpenAPS download it from there to use in your loop. This repository allows you to get your CGM data from xDrip into OpenAPS without the need for an internet connection.
+**Note as of 1/26/17:** The below documentation is WIP and needs additional testing.
 
-xDripAPS is a lightweight microservice intended to be used on Raspberry Pi or Intel Edison OpenAPS rigs. Users of the xDrip Android app can use the "REST API Upload" option to send CGM data to this service. The service stores the data in a SQLite3 database. The service can be invoked from within OpenAPS to retrieve CGM data. This approach allows for offline/camping-mode looping. No internet access is required, just a local, or "personal" network between the Android phone and the OpenAPS rig (using either WiFi hotspotting or bluetooth tethering).
+Do you use OpenAPS and the xDrip/xDrip+ Android App? Until now this required an internet connection to upload your xDrip/xDrip+ Android App CGM data to an online Nightscout instance (the OpenAPS community recommends utilizing Heroku). Then your data was downloaded to your OpenAPS rig for use in your online loop. The xDripAPS code resides on your OpenAPS rig and allows the direct transfer of xDrip/xDrip+ Android App CGM data to your OpenAPS rig without an internet connection. xDripAPS creates an offline OpenAPS rig which utilizes a "local" or "personal" network (WiFi hotspot or Bluetooth PAN tethering) for direct communication between the xDrip/xDrip+ Android device and the OpenAPS rig. Data which is 'missing' from Nightscout will be uploaded when the OpenAPS rig regains internet connectivity.
 
-As of January 2017, support for xDripAPS is now included in the OpenAPS oref0-setup.sh script. Ensure that you use the dev branch, as this has not been merged with master yet. When running the oref0-setup.sh script, you will be prompted to specify a CGM type (e.g. MDT, G4). You can specify "xdrip" (without the quotes). This will install xDripAPS and all dependencies. Alternatively, manual installation instructions can be found at the bottom of this page.
+The OpenAPS community recommends an Explorer Board / Intel Edison rig, but xDripAPS also works with a Raspberry Pi rig.
+
+Configuring an offline OpenAPS rig is quite easy because the OpenAPS setup script (oref0-setup.sh v0.4.0 and later) supports an automated installation of xDripAPS and dependencies. When running the OpenAPS setup script you simply specify "xdrip" (without the quotes) when promped to specify a CGM type (e.g. MDT, G4). Alternatively, manual installation instructions can be found at the bottom of this page.
 
 #### Overview of xDripAPS
 With xDripAPS, the flow of data is as follows -
@@ -159,34 +168,47 @@ With xDripAPS, the flow of data is as follows -
 1. Usually a Dexcom G5, or G4 plus xDrip wireless bridge.
 2. Either xDrip or xDrip+ can be used. In the app, the REST API Upload feature is normally used to upload CGM data to Nightscout. Instead, we use this feature to upload to xDripAPS on your OpenAPS rig (further details below).
 3. Your OpenAPS rig - usually a Raspberry Pi or an Intel Edison.
-4. The xDrip app is now uploading your data to xDripAPS on your OpenAPS rig rather than to Nightscout. OpenAPS will now upload your CGM data to Nightscout as well as treatments, pump status, etc. So your Nightscout site will still be updated. Note that it will take a couple of minutes longer for CGM data to reach Nightscout, compared with when uploading directly from xDrip.
+4. The xDrip or xDrip+ app is now uploading your data to xDripAPS on your OpenAPS rig rather than to Nightscout. OpenAPS will now upload your CGM data to Nightscout as well as treatments, pump status, etc. So your Nightscout site will still be updated. Note that it will take a couple of minutes longer for CGM data to reach Nightscout, compared with when uploading directly from xDrip or xDrip+
 
 #### Setup Steps (using oref0-setup.sh script)
 
 ##### Setting up your OpenAPS rig
-Install OpenAPS as per the documentation. When running the oref0-setup script, you will be prompted to specify a CGM source. Enter "xdrip" (without the quotes).
+Install OpenAPS as per the documentation. While running the oref0-setup script you will be prompted to specify a CGM source. Enter "xdrip" (without the quotes). The setup script takes care of the rest! Follow the remainder of the setup script as normal.
 
 ##### Connect your Android phone and your OpenAPS rig
-For the xDrip app on your Android phone to be able to send CGM data to xDripAPS on your OpenAPS rig, they need to be connected to the same "personal" network. Note that an internet connection is not required - this solution allows you to loop without internet connectivity. Data which is 'missing' from Nightscout will be uploaded when you regain internet connectivity.
+For the xDrip/xDrip+ app on your Android phone to be able to send CGM data to xDripAPS on your OpenAPS rig, they both need to be connected to the same "personal" network. Note that an internet connection is not required - this solution allows you to loop without internet connectivity.
 
-There are two approaches for establishing a "personal" network between your phone and your OpenAPS rig. The first is to run a WiFi hotspot on your phone and connect your OpenAPS rig to the WiFi network your phone exposes. This is the easiest option, but there are two drawbacks - it drains your phone battery quickly, and your phone cannot connect to a normal WiFi network while the WiFi hotspot is enabled (it can connect to the internet via 3G/4G when coverage is available).
+There are two approaches for establishing a "personal" network between your phone and your OpenAPS rig. The first is to run a WiFi hotspot on your phone and connect your OpenAPS rig to the WiFi network your phone exposes. This is the easiest option, but there are two drawbacks - it drains your phone battery quickly, and some phones cannot connect to a normal WiFi network while the WiFi hotspot is enabled (it can connect to the internet via 3G/4G when coverage is available).
 
-The other option is to enable bluetooth tethering on your phone and have your OpenAPS rig connect to it. This does not drain the phone's battery as quickly and means that the phone can still connect to a normal WiFi network for internet access when available (and to 3G/4G networks when WiFi is not available). I use this approach 24/7 - my OpenAPS rig is permanently tethered to my Nexus 6P phone. I can get a full day of phone usage without running out of battery, unless I make a lot of calls or have a lot of screen-on time.
+The other option is to enable bluetooth PAN tethering on your phone and have your OpenAPS rig connect to it. This does not drain the phone's battery as quickly and means that the phone can still connect to a normal WiFi network for internet access when available (and to 3G/4G networks when WiFi is not available). I use this approach 24/7 - my OpenAPS rig is permanently tethered to my Nexus 6P phone. I can get a full day of phone usage without running out of battery, unless I make a lot of calls or have a lot of screen-on time.
 
 Instructions on both approaches can be found in the main OpenAPS documentation.
 
-##### Configuring the xDrip Android app
+##### Configuring the xDrip/xDrip+ Android app
 First, determine your OpenAPS rig's IP address within your "personal" network. If you can open a terminal session to your rig via serial, then `ifconfig wlan0` (when using the WiFi hostpost option) or `ifconfig bnep0` (when using bluetooth tethering) will display your IP address. Alternatively, you can use an Android app - there are lots of "Network IP Scanner" apps in the Play store. The Hurricane Electric Network Tools app works with both the WiFi hotspot and BT tethering options.
 
-Then, open xDrip or xDrip+ settings and in the REST API Upload setting, configure the following URL -
+Next, open xDrip or xDrip+ and navigate to Settings > Cloud Upload > API Upload (REST). In the `Base URL` setting, configure the following URL
 
-`http://<api_secret>@<rig_ip_address>:5000/api/v1/`
+`http://<nightscout_api_secret>@<rig_ip_address>:5000/api/v1/`
 
-Note: ensure you enter http:// (NOT https://). <api_secret> is the plain-text API secret you used when you set up OpenAPS/Nightscout and <rig_ip_address> is the IP address of your OpenAPS rig (starting 192.168). For example, this is the value I have configured (I have obscured my API secret) -
+A few notes to clarify:
+   * enter "http://" NOT "https://
+   * <nightscout_api_secret> is the plain-text API secret used when creating your online Nightscout instance.
+   * <rig_ip_address> is the IP address of your OpenAPS rig assigned by your WiFi, WiFi hotspot, or Bluetooth PAN tether connection. It will usually take the form of: `192.168.xxx.xxx`.
 
 ![REST API Upload setting](https://github.com/colinlennon/xDripAPS/blob/master/xDrip_REST_API_cropped.png "REST API Upload setting")
 
-If using xDrip+ you also need to navigate to Settings > Cloud Upload > MongoDB and ensure that the "Skip LAN uploads" option is NOT selected. If you don't have this setting, update to a recent version of the xDrip+ app. (This option was added to a nightly build around December 2016).
+If using xDrip+ navigate to Settings > Cloud Upload > MongoDB and uncheck the "Skip LAN uploads" option. Do not turn on the "Enable Nightscout Mongo DB sync" option. Next, navigate to Settings > Cloud Upload > API Upload (REST) and uncheck the "Skip LAN uploads" option. NOTE: if you don't have these options, update to a recent version of the xDrip+ app. These options were added to a nightly build in December 2016.
+
+##### Advanced Options
+
+* Use both API Upload (REST) and MongoDB
+    * You can use both the API Upload (REST) and the MongoDB upload options.  This has the advantage of immediately showing your BG values in Nightscout and allows OpenAPS to continue to get BG values if the link ever fails between your xDrip/xDrip+ uploader phone and your rig.  One disadvantage to this method is that you will have duplicate entries in your Mongo database.
+* Enter multiple REST URLs
+    * If you are needing to constantly switch between two or more "personal" networks, you would have to edit the `Base URL` each time with the new IP address. To simplify this process, multiple URLs can be added to the REST API Upload `Base URL` setting, and xDrip/xDrip+ will attempt to upload to each URL.  NOTE:  the URLs must be "space" deliminated.  For example:
+```
+http://<nightscout_api_secret>@<rig_ip_address1>:5000/api/v1/ http://<nightscout_api_secret>@<rig_ip_address2>:5000/api/v1/
+```
 
 #### Manual installation steps
 
@@ -229,9 +251,7 @@ If using xDrip+ you also need to navigate to Settings > Cloud Upload > MongoDB a
   `@reboot         python /home/root/.xDripAPS/xDripAPS.py`
 
 6. Cofigure the xDrip Android app -
-   ```
-  xDrip > Settings > REST API Upload > Set Enabled and enter Base URL: http://[API_SECRET]@[Pi/Edison_IP_address]:5000/api/v1/
-  ```
+  `xDrip > Settings > REST API Upload > Set Enabled and enter Base URL: http://[API_SECRET]@[Pi/Edison_IP_address]:5000/api/v1/`
  
   (Note: Enter your plain-text API_SECRET in the Android app, not the hashed version of it).
 
@@ -241,4 +261,119 @@ If using xDrip+ you also need to navigate to Settings > Cloud Upload > MongoDB a
   ```
   openaps device add xdrip process 'bash -c "curl -s http://localhost:5000/api/v1/entries?count=288"'
   openaps report add monitor/glucose.json text xdrip shell
+  ```
 
+### Hot Button - also for Android users
+
+#### Purpose
+[Hot Button app](https://play.google.com/store/apps/details?id=crosien.HotButton) can be used to monitor and control OpenAPS using SSH commands. It is especialy useful for offline setups. Internet connection is not required, it is enough to have the rig connected to your android smartphone using bluetooth tethering.
+
+#### App Setup 
+To setup the button you need to long click. Setup the Server Settings and set them as default. For every other button you can load them.
+
+#### Basic commands
+To the Command part of the button setup you can write any command which you would run in the ssh session. For example to show the automatic sensitivity ratio, you can set:
+`cat /root/myopenaps/settings/autosens.json`
+
+After button click the command is executed and the results are displayed in the black text area bellow the buttons. 
+
+#### Temporary targets
+It is possible to use Hot Button application for setup of temporary targets.  This [script](https://github.com/lukas-ondriga/openaps-share/blob/master/start-temp-target.sh) generates the custom temporary target starting at the time of its execution. You need to edit the path to the openaps folder inside it.
+
+To setup activity mode run:
+`./set_temp_target.sh "Activity Mode" 130`
+
+To setup eating soon mode run:
+`./set_temp_target.sh "Eating Soon" 80`
+
+The script is currently work in progress. The first parameter is probably not needed, it is there to have the same output as Nightscout produces. It is not possible to set different top and bottom target, but this could be easily added in the future. 
+To be able to use the script, the most straigtforward solution is to disable the download of temporary targets from Nightscout. To do that edit your openaps.ini and remove `openaps ns-temptargets` from ns-loop. 
+
+#### SSH Login Speedup
+To speed up the command execution you can add to the `/etc/ssh/sshd_config` the following line:
+`UseDNS no`
+
+********************************
+
+### Local, offline BGs for iPhone users using a separate Loop app
+
+These instructions describe how to use a Loopkit/Loop app as a glucose data source for offline looping using OpenAPS. Note that most of the features of Loop itself are not used in this modification; we are using Loop simply as a local bridge for glucose data from the G5 transmitter to the OpenAPS rig. If you have a working version of Loop already installed, it is recommended build this branch as a separate app by using a unique bundle identifier.
+
+Also, for those unfamiliar with Loop, note the below instructions are about creating a developer account to self-deploy the app. This is free, but you'd have to re-build the app every 7 days (and it will probably drive you crazy). Otherwise, it's $99 for a developer licenese where you don't have to re-deploy weekly. (For other alternatives for offline BG, see the top of this page).
+
+#### Prerequisites for using Loop app on iPhone for local, offline BGs to the rig
+1. Build (and deploy to your iPhone) a version of Loop using the `lookout` branch from @thebookins. Follow the instructions in [Loop Docs](https://loopkit.github.io/loopdocs/) but install Loop as follows:
+```
+git clone https://github.com/thebookins/Loop.git
+git checkout lookout
+```
+(alternatively, merge the `lookout` changes with your own Loop fork). Depending on the version of XCode you are using, it may be necessary to rebuild the linked frameworks using carthage:
+```
+carthage update --platform iOS
+```
+
+2. If you haven't already done so, install the dev branch of OpenAPS using the [setup script](https://openaps.readthedocs.io/en/latest/docs/walkthrough/phase-2/oref0-setup.html) with `xdrip` as the glucose source.
+
+3. Step 2 will set up [xDripAPS](https://github.com/colinlennon/xDripAPS) on your OpenAPS rig. This is a Python program that exposes a very simplified NightScout instance running on the rig to which we can send glucose data. A couple of changes to xDripAPS are required to get it to accept glucose data from Loop. Pull these changes as follows:
+```
+cd
+rm -r .xDripAPS
+git clone https://github.com/thebookins/xDripAPS.git $HOME/.xDripAPS
+cd .xDripAPS
+git checkout lookout
+```
+
+4. Setup up [Bluetooth tethering](http://openaps.readthedocs.io/en/latest/docs/walkthrough/phase-4/bluetooth-tethering-edison.html) between your iPhone and your OpenAPS rig.
+
+5. Open Loop and the Dexcom app on your iPhone. The Dexcom app will control the G5 transmitter; Loop just listens in.
+
+#### Setup
+1. In Loop, select G5 Transmitter in Settings and enter the G5 Transmitter ID. Do not add the pump serial number as we are using Loop only as a local bridge to get BG data to OpenAPS. (Without a RileyLink, it's impossible to control the pump anyway.)
+
+2. In Loop, select Nightscout in Settings and enter the local IP address for your Edison in URL format with the addition of `:5000` at the end (which will look like this `http://[YOUR EDISON'S IP ADDRESS]:5000`). Then, enter your API secret as requested in Loop.
+
+All done. Loop will now send glucose data to the edison URL every five minutes, ready to be picked up by oref0.
+
+********************************
+
+### Creating an information web page that can be picked up using the rig's URL.
+
+**TODO** - implement this as a proper oref0 script that can be installed by oref0-setup
+
+This allows you to extract data from the various files that OpenAPS creates and access the locally from the phone that is connected to the rig, giving a full information set.
+
+Firstly, you need to set up the script that will do this for you. An example is shown below:
+
+```
+rm ~/myopenaps/enact/index.html
+touch ~/myopenaps/enact/index.html
+
+(cat ~/myopenaps/enact/smb-enacted.json | jq -r .timestamp | awk '{print substr($0,12,5)}') >> ~/myopenaps/enact/index.html
+
+(cat ~/myopenaps/enact/smb-enacted.json | jq -r .reason) >> ~/myopenaps/enact/index.html
+(echo -n 'TBR: ' && cat ~/myopenaps/enact/smb-enacted.json | jq .rate) >> ~/myopenaps/enact/index.html                                  
+(echo -n 'IOB: ' && cat ~/myopenaps/enact/smb-enacted.json | jq .IOB) >> ~/myopenaps/enact/index.html
+(echo -n 'Edison Battery: ' && cat ~/myopenaps/monitor/edison-battery.json | jq -r .battery | tr '\n' ' ' && echo '%') >> ~/myopenaps/enact/index.html
+(echo -n 'Insulin Remaining: ' && cat ~/myopenaps/monitor/reservoir.json) >> ~/myopenaps/enact/index.html
+```
+You may need to adjust the values in `'{print substr($0,12,5)}'` - whilst I know these work on the rigs I have set them up on, other's have had better results with `{print substr($0,13,5)}'`
+
+It can be set up where you choose, either in your openaps directory or at root.
+
+You will also need to start up the SimpleHTTPserver service that is already installed on jubilinux in the location you will place your file. This is done by adding the following line to your Cron:
+
+```
+@reboot cd /root/myopenaps/enact && python -m SimpleHTTPServer 1337
+```
+The final thing to do is to make sure the script runs regularly to collect the data and publish it. This requires an additional cron line:
+
+```
+*/5 * * * * (bash /root/http.sh) 2>&1 | tee -a /var/log/openaps/http.log
+```
+In this case the script is running from the /root directory and I am publishing to the ~/myopenaps/enact directory.
+
+To access this from an iphone browser, enter something like the following: http://172.20.10.x:1337/index.html and you should receive an unformatted html page with the data in it. If you want to improve the output for a browser, the script can be modified to generate html tags that will allow formatting and could provide colouring if various predicted numbers were looking too low.
+
+On Android, you can download http-widget (https://play.google.com/store/apps/details?id=net.rosoftlab.httpwidget1&hl=en_GB) and add a widget to your home screen that will display this data.
+
+If you use a Samsung Gear S3 watch, you can use the above http-widget with Wearable Widgets (http://wearablewidgets.com) to view what OpenAPS is doing locally, without internet connection.
